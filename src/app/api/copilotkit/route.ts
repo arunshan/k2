@@ -1,13 +1,13 @@
 import {
   CopilotRuntime,
+  EmptyAdapter,
   copilotRuntimeNextJSAppRouterEndpoint,
 } from "@copilotkit/runtime";
 import { createAmazonBedrock } from "@ai-sdk/amazon-bedrock";
 import { BuiltInAgent } from "@copilotkitnext/agent";
 import { NextRequest } from "next/server";
 import { v4 as uuidv4 } from "uuid";
-import { retrieveContext } from "@/lib/knowledge-base";
-import { sanitizeInput, buildSystemPrompt } from "@/lib/guardrails";
+import { sanitizeInput } from "@/lib/guardrails";
 import { logAuditEvent } from "@/lib/dynamodb";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getBedrockCredentials, getBedrockRegion } from "@/lib/bedrock-credentials";
@@ -199,57 +199,11 @@ const copilotRuntime = new CopilotRuntime({
       },
     },
   ],
-  middleware: {
-    onBeforeRequest: async (options) => {
-      const lastMessage = options.inputMessages[options.inputMessages.length - 1];
-      if (lastMessage && "content" in lastMessage) {
-        const content =
-          typeof lastMessage.content === "string"
-            ? lastMessage.content
-            : JSON.stringify(lastMessage.content);
-
-        const sanitized = sanitizeInput(content);
-
-        let retrievedContext = "";
-        try {
-          const retrieved = await retrieveContext(sanitized);
-          retrievedContext = retrieved.context;
-        } catch {
-          // RAG not configured
-        }
-
-        const systemPrompt = buildSystemPrompt(
-          retrievedContext || undefined,
-          true,
-        );
-
-        options.properties = {
-          ...options.properties,
-          systemPrompt,
-        };
-
-        logAuditEvent({
-          conversationId: options.threadId || "unknown",
-          eventTimestamp: new Date().toISOString(),
-          eventType: "user_message",
-          data: { content: sanitized },
-        }).catch(() => {});
-      }
-    },
-    onAfterRequest: async (options) => {
-      if (!options.outputMessages) return;
-      logAuditEvent({
-        conversationId: options.threadId || "unknown",
-        eventTimestamp: new Date().toISOString(),
-        eventType: "assistant_response",
-        data: { messageCount: options.outputMessages.length },
-      }).catch(() => {});
-    },
-  },
 });
 
 const { handleRequest } = copilotRuntimeNextJSAppRouterEndpoint({
   runtime: copilotRuntime,
+  serviceAdapter: new EmptyAdapter(),
   endpoint: "/api/copilotkit",
 });
 
@@ -269,6 +223,25 @@ export const POST = async (req: NextRequest) => {
         JSON.stringify({ error: "Rate limit exceeded. Please try again later." }),
         { status: 429, headers: { "Content-Type": "application/json" } },
       );
+    }
+
+    if (body?.messages?.length) {
+      const lastMessage = body.messages[body.messages.length - 1];
+      if (lastMessage && lastMessage.content) {
+        const content =
+          typeof lastMessage.content === "string"
+            ? lastMessage.content
+            : JSON.stringify(lastMessage.content);
+
+        const sanitized = sanitizeInput(content);
+
+        logAuditEvent({
+          conversationId: body.threadId || "unknown",
+          eventTimestamp: new Date().toISOString(),
+          eventType: "user_message",
+          data: { content: sanitized },
+        }).catch(() => {});
+      }
     }
   }
 
