@@ -1,0 +1,137 @@
+{
+  "title": "K2 Support Agent - LLM Observability",
+  "description": "Production monitoring for the K2 customer support AI agent",
+  "widgets": [
+    {
+      "definition": {
+        "title": "LLM Request Latency (p50/p95)",
+        "type": "timeseries",
+        "requests": [
+          {
+            "q": "avg:llm.request.latency.p50{service:k2-support-agent}",
+            "display_type": "line",
+            "style": { "palette": "cool" }
+          },
+          {
+            "q": "avg:llm.request.latency.p95{service:k2-support-agent}",
+            "display_type": "line",
+            "style": { "palette": "warm" }
+          }
+        ]
+      }
+    },
+    {
+      "definition": {
+        "title": "LLM Requests / Minute",
+        "type": "timeseries",
+        "requests": [
+          {
+            "q": "sum:llm.request.count{service:k2-support-agent}.as_rate()",
+            "display_type": "bars",
+            "style": { "palette": "cool" }
+          }
+        ]
+      }
+    },
+    {
+      "definition": {
+        "title": "Error Rate",
+        "type": "timeseries",
+        "requests": [
+          {
+            "q": "sum:llm.request.errors{service:k2-support-agent}.as_rate()",
+            "display_type": "bars",
+            "style": { "palette": "warm" }
+          }
+        ]
+      }
+    },
+    {
+      "definition": {
+        "title": "Token Usage (Input vs Output)",
+        "type": "timeseries",
+        "requests": [
+          {
+            "q": "avg:llm.tokens.input{service:k2-support-agent}",
+            "display_type": "line",
+            "style": { "palette": "cool" }
+          },
+          {
+            "q": "avg:llm.tokens.output{service:k2-support-agent}",
+            "display_type": "line",
+            "style": { "palette": "warm" }
+          }
+        ]
+      }
+    },
+    {
+      "definition": {
+        "title": "RAG Retrieval Hit Rate",
+        "type": "timeseries",
+        "requests": [
+          {
+            "q": "avg:rag.retrieval.count{service:k2-support-agent}",
+            "display_type": "bars",
+            "style": { "palette": "purple" }
+          }
+        ]
+      }
+    },
+    {
+      "definition": {
+        "title": "RAG Top Retrieval Score",
+        "type": "timeseries",
+        "requests": [
+          {
+            "q": "avg:rag.retrieval.top_score{service:k2-support-agent}",
+            "display_type": "line",
+            "style": { "palette": "green" }
+          }
+        ]
+      }
+    },
+    {
+      "definition": {
+        "title": "RAG Retrieval Latency",
+        "type": "timeseries",
+        "requests": [
+          {
+            "q": "avg:rag.retrieval.latency{service:k2-support-agent}",
+            "display_type": "line",
+            "style": { "palette": "orange" }
+          }
+        ]
+      }
+    },
+    {
+      "definition": {
+        "title": "HTTP Request Latency (p50/p95)",
+        "type": "timeseries",
+        "requests": [
+          {
+            "q": "avg:trace.next.request.duration.by.resource_service.50p{service:k2-support-agent}",
+            "display_type": "line"
+          },
+          {
+            "q": "avg:trace.next.request.duration.by.resource_service.95p{service:k2-support-agent}",
+            "display_type": "line"
+          }
+        ]
+      }
+    },
+    {
+      "definition": {
+        "title": "Active Conversations (last hour)",
+        "type": "query_value",
+        "requests": [
+          {
+            "q": "sum:llm.request.count{service:k2-support-agent}.rollup(sum, 3600)"
+          }
+        ]
+      }
+    }
+  ],
+  "layout_type": "ordered",
+  "notify_list": [],
+  "reflow_type": "fixed"
+}

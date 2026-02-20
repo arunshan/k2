@@ -1,0 +1,7 @@
+node_modules
+.next
+out
+.lambda-package
+.env.local
+infra/cdk-outputs.json
+infra/cdk.out

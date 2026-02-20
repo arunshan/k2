@@ -1,0 +1,47 @@
+{
+  "name": "k2-customer-support-agent",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@ai-sdk/amazon-bedrock": "^3.0.83",
+    "@aws-sdk/client-bedrock-agent-runtime": "^3.750.0",
+    "@aws-sdk/client-bedrock-runtime": "^3.750.0",
+    "@aws-sdk/client-dynamodb": "^3.750.0",
+    "@aws-sdk/client-s3": "^3.750.0",
+    "@aws-sdk/lib-dynamodb": "^3.750.0",
+    "@aws-sdk/s3-request-presigner": "^3.750.0",
+    "@copilotkit/react-core": "^1.51.4",
+    "@copilotkit/react-ui": "^1.51.4",
+    "@copilotkit/runtime": "^1.51.4",
+    "@strands-agents/sdk": "^0.3.0",
+    "clsx": "^2.1.1",
+    "dd-trace": "^5.32.0",
+    "lucide-react": "^0.469.0",
+    "next": "^14.2.21",
+    "next-auth": "^4.24.11",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "tailwind-merge": "^2.6.0",
+    "uuid": "^11.0.5",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/node": "^22.12.0",
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "@types/uuid": "^10.0.0",
+    "autoprefixer": "^10.4.20",
+    "eslint": "^8.57.1",
+    "eslint-config-next": "^14.2.21",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.7.3",
+    "vitest": "^4.0.18"
+  }
+}
