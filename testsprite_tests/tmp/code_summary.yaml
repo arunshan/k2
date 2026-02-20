@@ -1,0 +1,80 @@
+version: "2"
+type: frontend
+tech_stack:
+  - TypeScript
+  - Next.js
+  - React
+  - Tailwind CSS
+  - CopilotKit
+  - next-auth
+  - Lucide React
+routes:
+  - path: /
+    file: src/app/page.tsx
+    auth_required: false
+    description: Home page with K2 Support Agent chat popup and link to Admin Panel
+  - path: /login
+    file: src/app/login/page.tsx
+    auth_required: false
+    description: Admin login page with email and password
+  - path: /admin
+    file: src/app/admin/page.tsx
+    auth_required: true
+    description: Admin panel with conversations, documents, and audit log tabs
+features:
+  - name: User Login
+    description: Sign in with email and password to access admin panel
+    files:
+      - src/app/login/page.tsx
+      - src/app/api/auth/[...nextauth]/route.ts
+    entry_route: /login
+    user_interactions:
+      - Fill email input field
+      - Fill password input field
+      - Click Sign In button to submit
+      - See error message on invalid credentials (Invalid email or password)
+      - Redirect to admin or callbackUrl on success
+    api_calls:
+      - method: POST
+        endpoint: /api/auth/callback/credentials
+    auth_required: false
+  - name: Home and Support Chat
+    description: Landing page with AI support agent chat popup and feature cards
+    files:
+      - src/app/page.tsx
+      - src/components/chat-widget.tsx
+      - src/app/providers.tsx
+    entry_route: /
+    user_interactions:
+      - View feature cards (Instant Answers, Smart Actions, Human Handoff)
+      - Click Admin Panel link to navigate to /admin
+      - Open chat popup and type messages (CopilotKit)
+    api_calls:
+      - method: POST
+        endpoint: /api/copilotkit
+    auth_required: false
+  - name: Admin Panel
+    description: View conversations, manage documents, view audit log
+    files:
+      - src/app/admin/page.tsx
+      - src/components/admin-dashboard.tsx
+      - src/components/document-upload.tsx
+      - src/components/audit-log.tsx
+    entry_route: /admin
+    user_interactions:
+      - Switch tabs (Conversations, Documents, Audit Log)
+      - View conversation list and select a conversation
+      - Upload and delete documents in Documents tab
+      - View audit log for a conversation
+      - Click Chat link to go home or Sign Out to log out
+    api_calls:
+      - method: GET
+        endpoint: /api/conversations
+      - method: GET
+        endpoint: /api/documents
+      - method: POST
+        endpoint: /api/documents
+      - method: DELETE
+        endpoint: /api/documents
+    auth_required: true
+known_limitations: []

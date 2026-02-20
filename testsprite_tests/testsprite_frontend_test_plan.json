@@ -1,0 +1,454 @@
+[
+  {
+    "id": "TC001",
+    "title": "Home page displays the three feature cards",
+    "description": "Verifies the landing page loads and shows the three feature cards for the product.",
+    "category": "Home and Support Chat",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Instant Answers\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Smart Actions\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Human Handoff\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Admin Panel\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC002",
+    "title": "Send a basic chat message and see an agent response",
+    "description": "Verifies a user can open the chat popup, send a message, and see a response message appear in the chat.",
+    "category": "Home and Support Chat",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Click on the chat widget button to open the chat popup"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Chat input\" is visible"
+      },
+      {
+        "type": "action",
+        "description": "Type \"Hi, can you help me with my order status?\" into the chat input"
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Send\" in the chat popup"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Hi, can you help me with my order status?\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify an assistant response message is visible in the chat thread"
+      }
+    ]
+  },
+  {
+    "id": "TC003",
+    "title": "Tool-triggering request shows a tool action or confirmation in chat",
+    "description": "Verifies that a request likely to trigger a tool action results in a tool card or confirmation message in the chat.",
+    "category": "Home and Support Chat",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Click on the chat widget button to open the chat popup"
+      },
+      {
+        "type": "action",
+        "description": "Type \"I want a refund for order 12345\" into the chat input"
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Send\" in the chat popup"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"I want a refund for order 12345\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a tool action card or a confirmation message related to \"refund\" is visible in the chat"
+      }
+    ]
+  },
+  {
+    "id": "TC004",
+    "title": "Chat popup remains open while waiting for a response",
+    "description": "Verifies that after sending a message, the chat UI stays open and shows ongoing conversation content.",
+    "category": "Home and Support Chat",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Click on the chat widget button to open the chat popup"
+      },
+      {
+        "type": "action",
+        "description": "Type \"Tell me what you can do.\" into the chat input"
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Send\" in the chat popup"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Chat popup\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Tell me what you can do.\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify an assistant response message is visible in the chat thread"
+      }
+    ]
+  },
+  {
+    "id": "TC005",
+    "title": "Authenticated user reaches Admin dashboard from Home via Admin Panel link",
+    "description": "Verifies that a logged-in user can click Admin Panel from Home and land on the /admin dashboard.",
+    "category": "Home and Support Chat",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Sign in\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/admin\""
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Home\" or the product logo to return to the home page"
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Admin Panel\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/admin\""
+      }
+    ]
+  },
+  {
+    "id": "TC006",
+    "title": "Chat shows an error banner when request fails or rate limit is exceeded",
+    "description": "Verifies the chat UI displays the specified error message and remains open when the backend returns a failure or rate limit response.",
+    "category": "Home and Support Chat",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Click on the chat widget button to open the chat popup"
+      },
+      {
+        "type": "action",
+        "description": "Type \"Please process a refund for order 99999\" into the chat input"
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Send\" in the chat popup"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Request failed or rate limit exceeded\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Chat popup\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC007",
+    "title": "Chat input does not send an empty message",
+    "description": "Verifies that clicking Send with an empty input does not add a new user message to the chat thread.",
+    "category": "Home and Support Chat",
+    "priority": "Low",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Click on the chat widget button to open the chat popup"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Chat input\" is visible"
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Send\" in the chat popup"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Request failed or rate limit exceeded\" is not visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify no new user message bubble is visible in the chat thread"
+      }
+    ]
+  },
+  {
+    "id": "TC008",
+    "title": "View a conversation’s message history from Conversations tab",
+    "description": "Verifies an authenticated admin can open the Conversations tab, select a conversation, and see its details and message history.",
+    "category": "Admin Panel",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Sign In\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/admin\""
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Conversations\" tab"
+      },
+      {
+        "type": "action",
+        "description": "Click the first conversation in the conversation list"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Message history\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC009",
+    "title": "Delete a document from Documents list",
+    "description": "Verifies an authenticated admin can delete a selected document and it is removed from the Documents list.",
+    "category": "Admin Panel",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Sign In\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/admin\""
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Documents\" tab"
+      },
+      {
+        "type": "action",
+        "description": "Click the first document in the Documents list"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Delete\" document control"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Delete\" is not visible"
+      }
+    ]
+  },
+  {
+    "id": "TC010",
+    "title": "Audit Log tab shows entries for a selected conversation",
+    "description": "Verifies an authenticated admin can open Audit Log, select a conversation, and see audit log entries rendered.",
+    "category": "Admin Panel",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Sign In\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/admin\""
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Audit Log\" tab"
+      },
+      {
+        "type": "action",
+        "description": "Click the first conversation in the conversation selector/list"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Audit\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC011",
+    "title": "Chat link returns admin to Home page",
+    "description": "Verifies the \"Chat\" link from the Admin Panel routes the user back to the Home page at /.",
+    "category": "Admin Panel",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Sign In\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/admin\""
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Chat\" link"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Admin Panel\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC012",
+    "title": "Sign Out ends session and redirects to Login page",
+    "description": "Verifies an authenticated admin can sign out from /admin and is redirected to /login.",
+    "category": "Admin Panel",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Sign In\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/admin\""
+      },
+      {
+        "type": "action",
+        "description": "Click \"Sign Out\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/login\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Password\" is visible"
+      }
+    ]
+  }
+]
