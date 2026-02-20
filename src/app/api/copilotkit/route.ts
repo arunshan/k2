@@ -207,6 +207,15 @@ const { handleRequest } = copilotRuntimeNextJSAppRouterEndpoint({
   endpoint: "/api/copilotkit",
 });
 
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type",
+};
+
+export const OPTIONS = () =>
+  new Response(null, { status: 204, headers: corsHeaders });
+
 export const POST = async (req: NextRequest) => {
   const cloned = req.clone();
   const body = await cloned.json().catch(() => null);
@@ -221,7 +230,7 @@ export const POST = async (req: NextRequest) => {
     if (!rateResult.allowed) {
       return new Response(
         JSON.stringify({ error: "Rate limit exceeded. Please try again later." }),
-        { status: 429, headers: { "Content-Type": "application/json" } },
+        { status: 429, headers: { "Content-Type": "application/json", ...corsHeaders } },
       );
     }
 
@@ -245,5 +254,14 @@ export const POST = async (req: NextRequest) => {
     }
   }
 
-  return handleRequest(req);
+  const response = await handleRequest(req);
+
+  const newHeaders = new Headers(response.headers);
+  Object.entries(corsHeaders).forEach(([k, v]) => newHeaders.set(k, v));
+
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers: newHeaders,
+  });
 };

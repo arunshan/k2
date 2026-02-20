@@ -1,7 +1,18 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-cd "$(dirname "$0")/../infra"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+
+# Load Bedrock credentials from .env.local
+if [ -f "$PROJECT_ROOT/.env.local" ]; then
+  export BEDROCK_ACCESS_KEY_ID=$(grep '^BEDROCK_ACCESS_KEY_ID=' "$PROJECT_ROOT/.env.local" | cut -d= -f2)
+  export BEDROCK_SECRET_ACCESS_KEY=$(grep '^BEDROCK_SECRET_ACCESS_KEY=' "$PROJECT_ROOT/.env.local" | cut -d= -f2)
+  export BEDROCK_SESSION_TOKEN=$(grep '^BEDROCK_SESSION_TOKEN=' "$PROJECT_ROOT/.env.local" | cut -d= -f2)
+  export BEDROCK_REGION=$(grep '^BEDROCK_REGION=' "$PROJECT_ROOT/.env.local" | cut -d= -f2)
+fi
+
+cd "$PROJECT_ROOT/infra"
 
 exec env \
   -u AWS_SESSION_TOKEN \
@@ -12,8 +23,8 @@ exec env \
   AWS_REGION=us-west-2 \
   CDK_DEFAULT_ACCOUNT=032916962448 \
   CDK_DEFAULT_REGION=us-west-2 \
-  BEDROCK_ACCESS_KEY_ID=ASIAQDPXL3HHI3GPNWPR \
-  BEDROCK_SECRET_ACCESS_KEY="J8+HUu569QnA39hqT4spxxO/96LGVwWveVOaUvBp" \
-  BEDROCK_SESSION_TOKEN="IQoJb3JpZ2luX2VjENP//////////wEaCXVzLWVhc3QtMSJGMEQCIAoXPC2JBRq1WrSmLTZzA5sxqT+muKtzw89vGL1zyQBtAiBNjBZv9nwHMukFIizNeFhj836GaxnCsZr2TGWibdLk5SqiAgic//////////8BEAAaDDAwNzQ5ODA5NTA1NCIMDrJ79kFd2VREtniIKvYBubsqfC4x8XnyrWm5RHMkLiG0rEXsV0ASJeMN+1VnTqW2827ZO4rwhZQTkbbcKHd6prvXSGWJFJ0KKj1TVmjuDcUTWI1Iuvd9RwooF3k/jEYd+f5H1B4VzO6N3FPDT5ISI/YeD0zFqBQfCUJ9rlrO/6/nkx6KcsPf60QNXIbWgBhnhh8VMV7zc/PPlN7Jdh5q/R3FNGeRe+QPR0+gozCaY7MWL1QwGGBSo6JfswjHD01UBkyv7myrQuHk6S/QhGtCgkKtX862+v1qNetXTPydaPZpJzu45w6wOCu+BxXTnInkHlYondDUDBL/xRDAmdcdZwXn2BrZMIzV4swGOp4BQvdZObeSCUZUV55lK8lRtyEOrCU4MedzqmvtO+9o/Nd8Kh7BZ6zMUmyzoEVX7dIuMzxt9ptdU4A/cHojgRFyny0g8v7gjQSdDYIdicsvjneARkzB/9pTgGXn7iWsvWsaziccwpN6jLrPVMgaTQtzIz6e3fmOEUu2n98LMGDkD0PZv+1xeGrsoMtlJF/Lk2/dPL4ke7HXGNE65U40PgM=" \
-  BEDROCK_REGION=us-west-2 \
+  BEDROCK_ACCESS_KEY_ID="$BEDROCK_ACCESS_KEY_ID" \
+  BEDROCK_SECRET_ACCESS_KEY="$BEDROCK_SECRET_ACCESS_KEY" \
+  BEDROCK_SESSION_TOKEN="$BEDROCK_SESSION_TOKEN" \
+  BEDROCK_REGION="${BEDROCK_REGION:-us-west-2}" \
   npx cdk deploy --all --require-approval never --outputs-file cdk-outputs.json
