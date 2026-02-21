@@ -43,6 +43,7 @@ export class ApiStack extends cdk.Stack {
         PORT: "3000",
         AWS_LWA_READINESS_CHECK_PATH: "/api/copilotkit",
         AWS_LWA_READINESS_CHECK_MIN_UNHEALTHY_STATUS: "500",
+        AWS_LWA_INVOKE_MODE: "response_stream",
         NODE_ENV: "production",
         DYNAMODB_CONVERSATIONS_TABLE: conversationsTable.tableName,
         DYNAMODB_SESSIONS_TABLE: sessionsTable.tableName,
@@ -60,6 +61,9 @@ export class ApiStack extends cdk.Stack {
           process.env.NEXTAUTH_SECRET || "k2-prod-secret-change-me",
         ADMIN_EMAIL: process.env.ADMIN_EMAIL || "admin@example.com",
         ADMIN_PASSWORD: process.env.ADMIN_PASSWORD || "admin123",
+        DATADOG_API_KEY: process.env.DATADOG_API_KEY || "",
+        DATADOG_APP_KEY: process.env.DATADOG_APP_KEY || "",
+        DATADOG_SITE: process.env.DATADOG_SITE || "datadoghq.com",
       },
       logRetention: logs.RetentionDays.ONE_WEEK,
     });
@@ -82,6 +86,7 @@ export class ApiStack extends cdk.Stack {
 
     this.functionUrl = fn.addFunctionUrl({
       authType: lambda.FunctionUrlAuthType.NONE,
+      invokeMode: lambda.InvokeMode.RESPONSE_STREAM,
     });
 
     new cdk.CfnOutput(this, "ApiUrl", {

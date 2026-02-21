@@ -1,80 +1,94 @@
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+const DD_API_KEY = process.env.DATADOG_API_KEY || process.env.DD_API_KEY || "";
+const DD_APP_KEY = process.env.DATADOG_APP_KEY || "";
+const DD_SITE = process.env.DATADOG_SITE || process.env.DD_SITE || "datadoghq.com";
 
-const globalForMcp = globalThis as any;
+const BASE = `https://api.${DD_SITE}/api`;
 
-function getMcpEnv() {
-  return {
-    DATADOG_API_KEY: process.env.DATADOG_API_KEY || process.env.DD_API_KEY || "",
-    DATADOG_APP_KEY: process.env.DATADOG_APP_KEY || "",
-    DATADOG_SITE: process.env.DATADOG_SITE || process.env.DD_SITE || "datadoghq.com",
-  };
-}
-
-async function getClient(): Promise<Client> {
-  if (globalForMcp.__ddHealthClient) return globalForMcp.__ddHealthClient;
-
-  const env = getMcpEnv();
-  if (!env.DATADOG_API_KEY || !env.DATADOG_APP_KEY) {
-    throw new Error("DATADOG_API_KEY and DATADOG_APP_KEY are required");
-  }
-
-  const transport = new StdioClientTransport({
-    command: "npx",
-    args: ["-y", "@winor30/mcp-server-datadog"],
-    env: { ...process.env, ...env } as Record<string, string>,
+async function ddGet(path: string): Promise<any> {
+  const res = await fetch(`${BASE}${path}`, {
+    headers: {
+      "DD-API-KEY": DD_API_KEY,
+      "DD-APPLICATION-KEY": DD_APP_KEY,
+      "Content-Type": "application/json",
+    },
   });
-
-  const client = new Client({ name: "k2-health", version: "1.0.0" }, { capabilities: {} });
-  await client.connect(transport);
-  globalForMcp.__ddHealthClient = client;
-  return client;
+  if (!res.ok) throw new Error(`Datadog ${path}: ${res.status} ${res.statusText}`);
+  return res.json();
 }
 
-function extractText(result: any): string {
-  return (result.content as any[])
-    ?.map((c: any) => (c.type === "text" ? c.text : JSON.stringify(c)))
-    .join("\n") || "";
+async function ddPost(path: string, body: any): Promise<any> {
+  const res = await fetch(`${BASE}${path}`, {
+    method: "POST",
+    headers: {
+      "DD-API-KEY": DD_API_KEY,
+      "DD-APPLICATION-KEY": DD_APP_KEY,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`Datadog ${path}: ${res.status} ${res.statusText}`);
+  return res.json();
 }
 
 export async function checkBugflixHealth(): Promise<string> {
+  if (!DD_API_KEY || !DD_APP_KEY) {
+    console.warn("[dd-health] Missing DATADOG_API_KEY or DATADOG_APP_KEY");
+    return "";
+  }
+
   const sections: string[] = [];
 
-  try {
-    const client = await getClient();
+  const [allMonitors, logs] = await Promise.allSettled([
+    ddGet("/v1/monitor"),
+    ddPost("/v2/logs/events/search", {
+      filter: { query: "service:bugflix status:error", from: "now-1h", to: "now" },
+      sort: "timestamp",
+      page: { limit: 10 },
+    }),
+  ]);
 
-    const [monitors, incidents, logs] = await Promise.allSettled([
-      client.callTool({ name: "get_monitors", arguments: { tags: "app:bugflix" } }),
-      client.callTool({ name: "list_incidents", arguments: {} }),
-      client.callTool({ name: "get_logs", arguments: { query: "app:bugflix status:error", from: "now-1h", to: "now", limit: 10 } }),
-    ]);
+  if (allMonitors.status === "fulfilled") {
+    const data = allMonitors.value;
+    if (Array.isArray(data)) {
+      const alerting = data.filter((m: any) =>
+        m.overall_state === "Alert" || m.overall_state === "Warn"
+      );
+      const bugflixMonitors = data.filter((m: any) =>
+        (m.name || "").toLowerCase().includes("bugflix")
+      );
+      const relevant = [...new Map([...alerting, ...bugflixMonitors].map((m: any) => [m.id, m])).values()];
 
-    if (monitors.status === "fulfilled") {
-      const text = extractText(monitors.value);
-      sections.push(`## Monitors (app:bugflix)\n${text || "No monitors found."}`);
-      console.log(`[dd-health] Monitors: ${text.length} chars`);
-    } else {
-      sections.push(`## Monitors\nUnable to fetch: ${monitors.reason?.message}`);
+      if (relevant.length > 0) {
+        const summary = relevant.map((m: any) => {
+          return `- Monitor "${m.name}": status=${m.overall_state}, type=${m.type}, query="${(m.query || "").slice(0, 300)}", message="${(m.message || "").slice(0, 300)}"`;
+        }).join("\n");
+        sections.push(`## Alerting & Bugflix Monitors\n${summary}`);
+        console.log(`[dd-health] Found ${relevant.length} relevant monitors (${alerting.length} alerting, ${bugflixMonitors.length} bugflix)`);
+      } else {
+        sections.push("## Monitors\nAll monitors are healthy. No alerts.");
+      }
     }
+  } else {
+    console.error("[dd-health] Monitors failed:", allMonitors.reason?.message);
+    sections.push(`## Monitors\nFailed to fetch: ${allMonitors.reason?.message}`);
+  }
 
-    if (incidents.status === "fulfilled") {
-      const text = extractText(incidents.value);
-      sections.push(`## Incidents\n${text || "No active incidents."}`);
-      console.log(`[dd-health] Incidents: ${text.length} chars`);
+  if (logs.status === "fulfilled") {
+    const data = logs.value;
+    const events = data?.data || [];
+    if (events.length > 0) {
+      const logSummary = events.slice(0, 5).map((e: any) => {
+        const attrs = e.attributes || {};
+        return `- [${attrs.timestamp}] ${attrs.message || attrs.status || "error"}`;
+      }).join("\n");
+      sections.push(`## Recent Error Logs (last 1h)\nFound ${events.length} errors:\n${logSummary}`);
+      console.log(`[dd-health] Found ${events.length} error logs`);
     } else {
-      sections.push(`## Incidents\nUnable to fetch: ${incidents.reason?.message}`);
+      sections.push("## Error Logs\nNo recent errors in the last hour.");
     }
-
-    if (logs.status === "fulfilled") {
-      const text = extractText(logs.value);
-      sections.push(`## Recent Error Logs (last 1h)\n${text || "No error logs found."}`);
-      console.log(`[dd-health] Logs: ${text.length} chars`);
-    } else {
-      sections.push(`## Error Logs\nUnable to fetch: ${logs.reason?.message}`);
-    }
-  } catch (err: any) {
-    console.error("[dd-health] Failed:", err.message);
-    return `Unable to check system health: ${err.message}`;
+  } else {
+    console.error("[dd-health] Logs failed:", logs.reason?.message);
+    sections.push(`## Error Logs\nFailed to fetch: ${logs.reason?.message}`);
   }
 
   return sections.join("\n\n");

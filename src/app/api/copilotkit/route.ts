@@ -4,10 +4,9 @@ import {
   copilotRuntimeNextJSAppRouterEndpoint,
 } from "@copilotkit/runtime";
 import { createAmazonBedrock } from "@ai-sdk/amazon-bedrock";
-import { BuiltInAgent, defineTool } from "@copilotkitnext/agent";
+import { BuiltInAgent } from "@copilotkitnext/agent";
 import { NextRequest } from "next/server";
 import { v4 as uuidv4 } from "uuid";
-import { z } from "zod/v3";
 import { sanitizeInput } from "@/lib/guardrails";
 import { logAuditEvent } from "@/lib/dynamodb";
 import { checkRateLimit } from "@/lib/rate-limit";
@@ -196,51 +195,77 @@ const baseActions: any[] = [
         return "You have been connected to a human agent. Please hold while we transfer your conversation.";
       },
     },
-    {
-      name: "check_system_health",
-      description:
-        "Checks the health of the Bugflix application by querying monitoring systems for active alerts, incidents, and recent errors. Call this whenever a user reports problems, slowness, errors, or asks about the status of the application.",
-      parameters: [],
-      handler: async () => {
-        console.log("[check_system_health] ▶ Querying Datadog via MCP...");
-        const result = await checkBugflixHealth();
-        console.log(`[check_system_health] ✓ Got ${result.length} chars`);
-        return result;
-      },
-    },
 ];
 
-const agentTools = [
-  defineTool({
-    name: "check_system_health",
-    description:
-      "Checks the health of the Bugflix application by querying monitoring systems for active alerts, incidents, and recent errors. Call this whenever a user reports problems, slowness, errors, or asks about the status of the application.",
-    parameters: z.object({}),
-    execute: async () => {
-      console.log("[check_system_health] ▶ Querying Datadog via MCP...");
-      const result = await checkBugflixHealth();
-      console.log(`[check_system_health] ✓ Got ${result.length} chars`);
-      return result;
-    },
-  }),
-];
+let healthCache: { data: string; ts: number } | null = null;
+const HEALTH_CACHE_TTL = 30_000;
 
-const copilotRuntime = new CopilotRuntime({
-  agents: {
-    default: new BuiltInAgent({
-      model: bedrockModel,
-      tools: agentTools,
-      maxSteps: 5,
-    }),
-  } as any,
-  actions: baseActions,
-});
+async function getHealthContext(): Promise<string> {
+  if (healthCache && Date.now() - healthCache.ts < HEALTH_CACHE_TTL) {
+    return healthCache.data;
+  }
+  try {
+    console.log("[copilotkit] Fetching Datadog health context...");
+    const data = await checkBugflixHealth();
+    healthCache = { data, ts: Date.now() };
+    console.log(`[copilotkit] Health context: ${data.length} chars`);
+    return data;
+  } catch (err: any) {
+    console.error("[copilotkit] Health fetch failed:", err.message);
+    return "";
+  }
+}
 
-const { handleRequest } = copilotRuntimeNextJSAppRouterEndpoint({
-  runtime: copilotRuntime,
-  serviceAdapter: new EmptyAdapter(),
-  endpoint: "/api/copilotkit",
-});
+function buildPrompt(healthData: string): string {
+  const healthSection = healthData
+    ? `\n\nCURRENT SYSTEM STATUS:\n${healthData}`
+    : "\n\nCURRENT SYSTEM STATUS: All systems operating normally.";
+
+  return `You are K2, a friendly customer support agent for Bugflix, a video streaming app.
+${healthSection}
+
+RULES:
+- Respond DIRECTLY to the user. Never output your thinking or reasoning.
+- Use the system status above to give informed answers. If there are active issues, proactively tell the user.
+- Never mention Datadog, monitors, metrics, alerts, health checks, or internal tools.
+- If system load is high, tell users "we're experiencing some server load that may cause slowness."
+- If DRM auth errors are spiking, tell users "we're aware of an issue affecting video playback authentication."
+- Be empathetic, concise (2-4 sentences), and offer to create a support ticket or escalate.`;
+}
+
+let cachedHandleRequest: ((req: NextRequest) => Promise<Response>) | null = null;
+let cachedHealthForPrompt: string = "";
+
+function getHandleRequest(healthData: string) {
+  if (cachedHandleRequest && cachedHealthForPrompt === healthData) {
+    return cachedHandleRequest;
+  }
+
+  const prompt = buildPrompt(healthData);
+  console.log("[copilotkit] Building runtime with prompt length:", prompt.length);
+
+  const copilotRuntime = new CopilotRuntime({
+    agents: {
+      default: new BuiltInAgent({
+        model: bedrockModel,
+        prompt: prompt,
+        maxSteps: 3,
+        forwardDeveloperMessages: true,
+      }),
+    } as any,
+    actions: baseActions,
+  });
+
+  const { handleRequest } = copilotRuntimeNextJSAppRouterEndpoint({
+    runtime: copilotRuntime,
+    serviceAdapter: new EmptyAdapter(),
+    endpoint: "/api/copilotkit",
+  });
+
+  cachedHandleRequest = handleRequest;
+  cachedHealthForPrompt = healthData;
+  return handleRequest;
+}
 
 export const OPTIONS = () =>
   new Response(null, {
@@ -253,8 +278,13 @@ export const OPTIONS = () =>
   });
 
 export const POST = async (req: NextRequest) => {
-  const cloned = req.clone();
-  const body = await cloned.json().catch(() => null);
+  const bodyText = await req.text();
+  let body: any;
+  try {
+    body = JSON.parse(bodyText);
+  } catch {
+    body = null;
+  }
 
   if (body?.method !== "info") {
     const ip =
@@ -290,5 +320,14 @@ export const POST = async (req: NextRequest) => {
     }
   }
 
-  return handleRequest(req);
+  const healthData = await getHealthContext();
+  const handleRequest = getHandleRequest(healthData);
+
+  const freshReq = new NextRequest(req.url, {
+    method: req.method,
+    headers: req.headers,
+    body: bodyText,
+  });
+
+  return handleRequest(freshReq);
 };
