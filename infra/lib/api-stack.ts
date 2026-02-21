@@ -82,11 +82,6 @@ export class ApiStack extends cdk.Stack {
 
     this.functionUrl = fn.addFunctionUrl({
       authType: lambda.FunctionUrlAuthType.NONE,
-      cors: {
-        allowedOrigins: ["*"],
-        allowedMethods: [lambda.HttpMethod.ALL],
-        allowedHeaders: ["*"],
-      },
     });
 
     new cdk.CfnOutput(this, "ApiUrl", {

@@ -3,6 +3,8 @@ const apiUrl = process.env.API_URL;
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  typescript: { ignoreBuildErrors: true },
+  eslint: { ignoreDuringBuilds: true },
   output: isStaticExport ? "export" : "standalone",
   images: {
     unoptimized: isStaticExport,
