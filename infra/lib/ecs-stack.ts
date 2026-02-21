@@ -132,7 +132,7 @@ export class EcsStack extends cdk.Stack {
       ),
       portMappings: [{ containerPort: 8126 }],
       environment: {
-        DD_API_KEY: process.env.DD_API_KEY || "521a33f5b7ef8a01e3cb43b5a64c34fc",
+        DD_API_KEY: process.env.DD_API_KEY,
         DD_SITE: process.env.DD_SITE || "datadoghq.com",
         DD_APM_ENABLED: "true",
         DD_APM_NON_LOCAL_TRAFFIC: "true",

@@ -10,11 +10,11 @@ LAMBDA_PKG="$PROJECT_ROOT/.lambda-package"
 # CDK infra uses the personal IAM user from ~/.aws/credentials [default]
 # Bedrock runtime creds come from .env.local (hackathon STS)
 unset AWS_SESSION_TOKEN
-export AWS_ACCESS_KEY_ID=AKIAQPKQA7SIJ7DYI74K
-export AWS_SECRET_ACCESS_KEY="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"
+export AWS_ACCESS_KEY_ID=
+export AWS_SECRET_ACCESS_KEY=
 export AWS_DEFAULT_REGION=us-west-2
 export AWS_REGION=us-west-2
-export CDK_DEFAULT_ACCOUNT=032916962448
+export CDK_DEFAULT_ACCOUNT=
 export CDK_DEFAULT_REGION=us-west-2
 
 if [ -f "$PROJECT_ROOT/.env.local" ]; then
