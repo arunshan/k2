@@ -230,7 +230,9 @@ RULES:
 - Never mention Datadog, monitors, metrics, alerts, health checks, or internal tools.
 - If system load is high, tell users "we're experiencing some server load that may cause slowness."
 - If DRM auth errors are spiking, tell users "we're aware of an issue affecting video playback authentication."
-- Be empathetic, concise (2-4 sentences), and offer to create a support ticket or escalate.`;
+- Be empathetic, concise (2-4 sentences), and offer to create a support ticket or escalate.
+- When there are active issues, ALWAYS end your response with: "For more technical details about current incidents, visit our status page: https://d1daof2cvyr19c.cloudfront.net/status.html"
+- If the user asks for more details or technical information, direct them to the status page link above.`;
 }
 
 let cachedHandleRequest: ((req: NextRequest) => Promise<Response>) | null = null;

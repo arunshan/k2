@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bugflix – System Status</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --border: #2a2d3a;
+    --text: #e4e4e7;
+    --muted: #9ca3af;
+    --green: #22c55e;
+    --yellow: #eab308;
+    --red: #ef4444;
+    --blue: #3b82f6;
+    --accent: #8b5cf6;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+  .container { max-width: 800px; margin: 0 auto; padding: 2rem 1rem; }
+  header { margin-bottom: 2.5rem; }
+  header h1 { font-size: 1.75rem; font-weight: 700; margin-bottom: 0.25rem; }
+  header p { color: var(--muted); font-size: 0.9rem; }
+  .overall-status {
+    display: flex; align-items: center; gap: 0.75rem;
+    padding: 1rem 1.25rem; border-radius: 12px;
+    margin-bottom: 2rem; font-weight: 600; font-size: 1.1rem;
+  }
+  .overall-status.ok { background: rgba(34,197,94,.1); border: 1px solid rgba(34,197,94,.25); color: var(--green); }
+  .overall-status.incident { background: rgba(239,68,68,.1); border: 1px solid rgba(239,68,68,.25); color: var(--red); }
+  .overall-status .dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+  .overall-status.ok .dot { background: var(--green); box-shadow: 0 0 8px var(--green); }
+  .overall-status.incident .dot { background: var(--red); box-shadow: 0 0 8px var(--red); animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .5; } }
+
+  section { margin-bottom: 2rem; }
+  section h2 { font-size: 1.1rem; font-weight: 600; margin-bottom: 1rem; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; font-size: 0.8rem; }
+
+  .monitor-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 1.25rem; margin-bottom: 0.75rem;
+    transition: border-color .2s;
+  }
+  .monitor-card:hover { border-color: var(--accent); }
+  .monitor-header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; }
+  .status-badge {
+    display: inline-flex; align-items: center; gap: 0.35rem;
+    padding: 0.2rem 0.6rem; border-radius: 9999px;
+    font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: .03em;
+  }
+  .status-badge.alert { background: rgba(239,68,68,.15); color: var(--red); }
+  .status-badge.warn { background: rgba(234,179,8,.15); color: var(--yellow); }
+  .status-badge.ok { background: rgba(34,197,94,.15); color: var(--green); }
+  .monitor-name { font-weight: 600; font-size: 1rem; }
+  .monitor-details { margin-top: 0.5rem; }
+  .detail-row { display: flex; gap: 0.5rem; margin-bottom: 0.35rem; font-size: 0.85rem; }
+  .detail-label { color: var(--muted); min-width: 80px; flex-shrink: 0; }
+  .detail-value { color: var(--text); word-break: break-word; }
+  .detail-value code {
+    background: rgba(139,92,246,.1); color: var(--accent);
+    padding: 0.15rem 0.4rem; border-radius: 4px; font-size: 0.8rem;
+    font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+  }
+  .monitor-message {
+    margin-top: 0.75rem; padding: 0.75rem;
+    background: rgba(255,255,255,.03); border-radius: 8px;
+    font-size: 0.85rem; color: var(--muted); line-height: 1.5;
+  }
+
+  .log-entry {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 0.5rem;
+    font-size: 0.85rem; display: flex; gap: 1rem; align-items: baseline;
+  }
+  .log-time { color: var(--muted); font-family: monospace; font-size: 0.8rem; white-space: nowrap; }
+  .log-msg { color: var(--red); }
+
+  .empty-state { color: var(--muted); font-size: 0.9rem; padding: 1rem 0; }
+  .refresh-note { color: var(--muted); font-size: 0.8rem; margin-top: 2rem; text-align: center; }
+  .loading { text-align: center; padding: 3rem; color: var(--muted); }
+  .spinner { display: inline-block; width: 24px; height: 24px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; margin-bottom: 1rem; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>Bugflix System Status</h1>
+    <p>Real-time service health and incident details</p>
+  </header>
+  <div id="content"><div class="loading"><div class="spinner"></div><br/>Loading status...</div></div>
+  <p class="refresh-note">Auto-refreshes every 30 seconds</p>
+</div>
+<script>
+const API_BASE = window.location.origin;
+
+function cleanMonitorName(name) {
+  return name
+    .replace(/\{\{[\w.]+\}\}/g, '')
+    .replace(/\[bugflix\]\s*/i, '')
+    .replace(/\[[\w:\.]+\]\s*/g, '')
+    .replace(/\s+on\s*$/, '')
+    .replace(/\s+for\s*$/, '')
+    .trim();
+}
+
+function friendlyDescription(m) {
+  const q = m.query.toLowerCase();
+  const name = m.name.toLowerCase();
+  if (name.includes('drm') || q.includes('drm')) return 'DRM authentication service is returning elevated error rates, which may prevent video playback for some users.';
+  if (name.includes('system load') || q.includes('system.load')) return 'Server CPU load is higher than normal, which may cause slower page loads and buffering.';
+  if (name.includes('high error rate') && q.includes('django')) return 'The web application backend is experiencing an elevated rate of failed requests.';
+  if (name.includes('high error rate') && q.includes('sidekiq')) return 'Background job processing is experiencing failures, which may delay notifications and account updates.';
+  if (name.includes('crashloopbackoff') || q.includes('crashloopbackoff')) return 'One or more application containers are repeatedly crashing and restarting.';
+  if (q.includes('error')) return 'Elevated error rates detected in this service component.';
+  return 'This monitor is currently in an alerting state.';
+}
+
+function statusClass(s) {
+  if (s === 'Alert') return 'alert';
+  if (s === 'Warn') return 'warn';
+  return 'ok';
+}
+
+function render(data) {
+  const el = document.getElementById('content');
+  const hasIncidents = data.hasActiveIncidents;
+  const alerting = data.monitors.filter(m => m.status === 'Alert' || m.status === 'Warn');
+  const ok = data.monitors.filter(m => m.status !== 'Alert' && m.status !== 'Warn');
+
+  let html = '';
+
+  html += `<div class="overall-status ${hasIncidents ? 'incident' : 'ok'}">
+    <span class="dot"></span>
+    ${hasIncidents
+      ? `${alerting.length} active incident${alerting.length !== 1 ? 's' : ''} detected`
+      : 'All systems operational'}
+  </div>`;
+
+  if (alerting.length > 0) {
+    html += '<section><h2>Active Incidents</h2>';
+    alerting.forEach(m => { html += monitorCard(m); });
+    html += '</section>';
+  }
+
+  if (ok.length > 0) {
+    html += '<section><h2>Monitored Services</h2>';
+    ok.forEach(m => { html += monitorCard(m); });
+    html += '</section>';
+  }
+
+  if (data.errorLogs.length > 0) {
+    html += '<section><h2>Recent Error Logs</h2>';
+    data.errorLogs.forEach(l => {
+      const t = l.timestamp ? new Date(l.timestamp).toLocaleTimeString() : '';
+      html += `<div class="log-entry"><span class="log-time">${t}</span><span class="log-msg">${esc(l.message.slice(0, 200))}</span></div>`;
+    });
+    html += '</section>';
+  }
+
+  el.innerHTML = html;
+}
+
+function monitorCard(m) {
+  const cls = statusClass(m.status);
+  const desc = friendlyDescription(m);
+  const shortQuery = m.query.length > 120 ? m.query.slice(0, 120) + '...' : m.query;
+  const cleanMsg = (m.message || '').replace(/#{1,6}\s*/g, '').replace(/\*\*/g, '').replace(/\[.*?\]\(.*?\)/g, '').slice(0, 300);
+
+  return `<div class="monitor-card">
+    <div class="monitor-header">
+      <span class="status-badge ${cls}">${m.status}</span>
+      <span class="monitor-name">${esc(cleanMonitorName(m.name))}</span>
+    </div>
+    <p style="color:var(--muted);font-size:0.9rem;margin-bottom:0.75rem">${esc(desc)}</p>
+    <div class="monitor-details">
+      <div class="detail-row"><span class="detail-label">Type</span><span class="detail-value">${esc(m.type)}</span></div>
+      <div class="detail-row"><span class="detail-label">Query</span><span class="detail-value"><code>${esc(shortQuery)}</code></span></div>
+      ${m.modified ? `<div class="detail-row"><span class="detail-label">Updated</span><span class="detail-value">${new Date(m.modified).toLocaleString()}</span></div>` : ''}
+    </div>
+    ${cleanMsg ? `<div class="monitor-message">${esc(cleanMsg)}</div>` : ''}
+  </div>`;
+}
+
+function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+async function load() {
+  try {
+    const res = await fetch(API_BASE + '/api/status');
+    const data = await res.json();
+    render(data);
+  } catch (e) {
+    document.getElementById('content').innerHTML = '<div class="empty-state">Failed to load status. Please try again later.</div>';
+  }
+}
+
+load();
+setInterval(load, 30000);
+</script>
+</body>
+</html>

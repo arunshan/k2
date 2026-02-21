@@ -30,6 +30,79 @@ async function ddPost(path: string, body: any): Promise<any> {
   return res.json();
 }
 
+export interface MonitorDetail {
+  id: number;
+  name: string;
+  status: string;
+  type: string;
+  query: string;
+  message: string;
+  tags: string[];
+  created: string;
+  modified: string;
+}
+
+export interface HealthDetail {
+  monitors: MonitorDetail[];
+  errorLogs: { timestamp: string; message: string; service: string }[];
+  fetchedAt: string;
+  hasActiveIncidents: boolean;
+}
+
+export async function checkBugflixHealthDetailed(): Promise<HealthDetail> {
+  const result: HealthDetail = {
+    monitors: [],
+    errorLogs: [],
+    fetchedAt: new Date().toISOString(),
+    hasActiveIncidents: false,
+  };
+
+  if (!DD_API_KEY || !DD_APP_KEY) return result;
+
+  const [allMonitors, logs] = await Promise.allSettled([
+    ddGet("/v1/monitor"),
+    ddPost("/v2/logs/events/search", {
+      filter: { query: "service:bugflix status:error", from: "now-1h", to: "now" },
+      sort: "timestamp",
+      page: { limit: 10 },
+    }),
+  ]);
+
+  if (allMonitors.status === "fulfilled" && Array.isArray(allMonitors.value)) {
+    const data = allMonitors.value;
+    const alerting = data.filter((m: any) => m.overall_state === "Alert" || m.overall_state === "Warn");
+    const bugflixMonitors = data.filter((m: any) => (m.name || "").toLowerCase().includes("bugflix"));
+    const relevant = [...new Map([...alerting, ...bugflixMonitors].map((m: any) => [m.id, m])).values()];
+
+    result.monitors = relevant.map((m: any) => ({
+      id: m.id,
+      name: m.name || "Unknown",
+      status: m.overall_state || "Unknown",
+      type: m.type || "unknown",
+      query: m.query || "",
+      message: m.message || "",
+      tags: m.tags || [],
+      created: m.created || "",
+      modified: m.modified || "",
+    }));
+    result.hasActiveIncidents = alerting.length > 0;
+  }
+
+  if (logs.status === "fulfilled") {
+    const events = logs.value?.data || [];
+    result.errorLogs = events.slice(0, 10).map((e: any) => {
+      const attrs = e.attributes || {};
+      return {
+        timestamp: attrs.timestamp || "",
+        message: attrs.message || attrs.status || "error",
+        service: attrs.service || "bugflix",
+      };
+    });
+  }
+
+  return result;
+}
+
 export async function checkBugflixHealth(): Promise<string> {
   if (!DD_API_KEY || !DD_APP_KEY) {
     console.warn("[dd-health] Missing DATADOG_API_KEY or DATADOG_APP_KEY");
