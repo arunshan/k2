@@ -4,13 +4,15 @@ import {
   copilotRuntimeNextJSAppRouterEndpoint,
 } from "@copilotkit/runtime";
 import { createAmazonBedrock } from "@ai-sdk/amazon-bedrock";
-import { BuiltInAgent } from "@copilotkitnext/agent";
+import { BuiltInAgent, defineTool } from "@copilotkitnext/agent";
 import { NextRequest } from "next/server";
 import { v4 as uuidv4 } from "uuid";
+import { z } from "zod/v3";
 import { sanitizeInput } from "@/lib/guardrails";
 import { logAuditEvent } from "@/lib/dynamodb";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getBedrockCredentials, getBedrockRegion } from "@/lib/bedrock-credentials";
+import { checkBugflixHealth } from "@/lib/datadog-health";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -28,11 +30,7 @@ const bedrock = createAmazonBedrock({
 
 const bedrockModel = bedrock(modelId);
 
-const copilotRuntime = new CopilotRuntime({
-  agents: {
-    default: new BuiltInAgent({ model: bedrockModel }),
-  } as any,
-  actions: [
+const baseActions: any[] = [
     {
       name: "create_ticket",
       description:
@@ -198,7 +196,44 @@ const copilotRuntime = new CopilotRuntime({
         return "You have been connected to a human agent. Please hold while we transfer your conversation.";
       },
     },
-  ],
+    {
+      name: "check_system_health",
+      description:
+        "Checks the health of the Bugflix application by querying monitoring systems for active alerts, incidents, and recent errors. Call this whenever a user reports problems, slowness, errors, or asks about the status of the application.",
+      parameters: [],
+      handler: async () => {
+        console.log("[check_system_health] ▶ Querying Datadog via MCP...");
+        const result = await checkBugflixHealth();
+        console.log(`[check_system_health] ✓ Got ${result.length} chars`);
+        return result;
+      },
+    },
+];
+
+const agentTools = [
+  defineTool({
+    name: "check_system_health",
+    description:
+      "Checks the health of the Bugflix application by querying monitoring systems for active alerts, incidents, and recent errors. Call this whenever a user reports problems, slowness, errors, or asks about the status of the application.",
+    parameters: z.object({}),
+    execute: async () => {
+      console.log("[check_system_health] ▶ Querying Datadog via MCP...");
+      const result = await checkBugflixHealth();
+      console.log(`[check_system_health] ✓ Got ${result.length} chars`);
+      return result;
+    },
+  }),
+];
+
+const copilotRuntime = new CopilotRuntime({
+  agents: {
+    default: new BuiltInAgent({
+      model: bedrockModel,
+      tools: agentTools,
+      maxSteps: 5,
+    }),
+  } as any,
+  actions: baseActions,
 });
 
 const { handleRequest } = copilotRuntimeNextJSAppRouterEndpoint({
@@ -207,14 +242,8 @@ const { handleRequest } = copilotRuntimeNextJSAppRouterEndpoint({
   endpoint: "/api/copilotkit",
 });
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type",
-};
-
 export const OPTIONS = () =>
-  new Response(null, { status: 204, headers: corsHeaders });
+  new Response(null, { status: 204 });
 
 export const POST = async (req: NextRequest) => {
   const cloned = req.clone();
@@ -230,7 +259,7 @@ export const POST = async (req: NextRequest) => {
     if (!rateResult.allowed) {
       return new Response(
         JSON.stringify({ error: "Rate limit exceeded. Please try again later." }),
-        { status: 429, headers: { "Content-Type": "application/json", ...corsHeaders } },
+        { status: 429, headers: { "Content-Type": "application/json" } },
       );
     }
 
@@ -254,14 +283,5 @@ export const POST = async (req: NextRequest) => {
     }
   }
 
-  const response = await handleRequest(req);
-
-  const newHeaders = new Headers(response.headers);
-  Object.entries(corsHeaders).forEach(([k, v]) => newHeaders.set(k, v));
-
-  return new Response(response.body, {
-    status: response.status,
-    statusText: response.statusText,
-    headers: newHeaders,
-  });
+  return handleRequest(req);
 };
